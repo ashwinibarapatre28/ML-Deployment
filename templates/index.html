@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Insurance Predictor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+<div class="app-container">
+    <div class="card form-card">
+        <div class="card-header">
+            <div class="logo-icon">
+                <i class="fa-solid fa-heart-pulse"></i>
+            </div>
+            <div>
+                <h1>Risk &amp; Cost Predictor</h1>
+                <p>AI-powered health insurance estimation</p>
+            </div>
+        </div>
+
+        <form id="predictForm" class="predict-form">
+            <div class="form-grid">
+                <div class="input-group">
+                    <label for="age">Age</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-calendar-alt icon"></i>
+                        <input type="number" id="age" name="age" placeholder="e.g. 35" required min="18" max="100">
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label for="bmi">BMI</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-weight-scale icon"></i>
+                        <input type="number" step="0.1" id="bmi" name="bmi" placeholder="e.g. 24.5" required min="10" max="60">
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label for="children">Children</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-children icon"></i>
+                        <input type="number" id="children" name="children" placeholder="Dependents" required min="0" max="10">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="region">Region</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-map-marker-alt icon"></i>
+                        <select id="region" name="region" required>
+                            <option value="" disabled selected>Select Region</option>
+                            <option value="northeast">Northeast</option>
+                            <option value="northwest">Northwest</option>
+                            <option value="southeast">Southeast</option>
+                            <option value="southwest">Southwest</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down arrow"></i>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="male">Gender</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-venus-mars icon"></i>
+                        <select id="male" name="male" required>
+                            <option value="1">Male</option>
+                            <option value="0">Female</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down arrow"></i>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label for="smoker">Smoker</label>
+                    <div class="input-wrapper">
+                        <i class="fa-solid fa-smoking icon"></i>
+                        <select id="smoker" name="smoker" required>
+                            <option value="1">Yes</option>
+                            <option value="0">No</option>
+                        </select>
+                        <i class="fa-solid fa-chevron-down arrow"></i>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn-primary" id="submitBtn">
+                <span class="btn-text">Analyze Profile</span>
+                <i class="fa-solid fa-arrow-right btn-icon"></i>
+                <div class="loader" style="display: none;"></div>
+            </button>
+        </form>
+        
+        <!-- Error Message Container -->
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+    </div>
+
+    <!-- Result Section (Hidden initially) -->
+    <div id="resultContainer" class="card result-card" style="display: none;">
+        <div class="result-header">
+            <h2>Estimated Annual Cost</h2>
+        </div>
+        
+        <div class="cost-display">
+            <span class="currency">₹</span>
+            <span class="amount" id="predictedCost">0.00</span>
+        </div>
+        
+        <div class="insights-section">
+            <h3>Health Profile Insights</h3>
+            <ul id="insightsList" class="insights-list">
+                <!-- Insights will be populated here dynamically -->
+            </ul>
+        </div>
+        
+        <button type="button" class="btn-secondary" id="recalculateBtn">
+            <i class="fa-solid fa-rotate-right"></i> Recalculate
+        </button>
+    </div>
+</div>
+
+<script>
+document.getElementById('predictForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const form = e.target;
+    const submitBtn = document.getElementById('submitBtn');
+    const btnText = submitBtn.querySelector('.btn-text');
+    const btnIcon = submitBtn.querySelector('.btn-icon');
+    const loader = submitBtn.querySelector('.loader');
+    const resultContainer = document.getElementById('resultContainer');
+    const errorMessage = document.getElementById('errorMessage');
+    
+    // UI state: loading
+    btnText.style.display = 'none';
+    btnIcon.style.display = 'none';
+    loader.style.display = 'block';
+    submitBtn.disabled = true;
+    errorMessage.style.display = 'none';
+    resultContainer.style.display = 'none';
+    
+    // Gather data
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+    
+    // Format numbers
+    data.age = parseInt(data.age);
+    data.bmi = parseFloat(data.bmi);
+    data.children = parseInt(data.children);
+    data.male = parseInt(data.male);
+    data.smoker = parseInt(data.smoker);
+
+    try {
+        const response = await fetch('/predict', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Populate result
+            document.getElementById('predictedCost').textContent = result.prediction.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            
+            const ul = document.getElementById('insightsList');
+            ul.innerHTML = '';
+            result.insights.forEach(insight => {
+                const li = document.createElement('li');
+                // Extract emoji and text
+                const emojiMatch = insight.match(/^([^\s]+)\s(.+)$/);
+                if (emojiMatch) {
+                    li.innerHTML = `<span class="insight-icon">${emojiMatch[1]}</span> <span class="insight-text">${emojiMatch[2]}</span>`;
+                } else {
+                    li.textContent = insight;
+                }
+                ul.appendChild(li);
+            });
+            
+            // Show result
+            resultContainer.style.display = 'flex';
+            // Smooth scroll to bottom if needed
+            setTimeout(() => {
+                resultContainer.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            }, 50);
+        } else {
+            errorMessage.textContent = 'Error: ' + result.error;
+            errorMessage.style.display = 'block';
+        }
+    } catch (err) {
+        errorMessage.textContent = 'Failed to connect to the server. Is it running?';
+        errorMessage.style.display = 'block';
+    } finally {
+        // UI state: restore
+        btnText.style.display = 'inline-block';
+        btnIcon.style.display = 'inline-block';
+        loader.style.display = 'none';
+        submitBtn.disabled = false;
+    }
+});
+
+document.getElementById('recalculateBtn').addEventListener('click', () => {
+    document.getElementById('resultContainer').style.display = 'none';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+</script>
+
+</body>
+</html>
